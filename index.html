@@ -793,6 +793,7 @@
       </div>
 
       <div class="modal-hint">
+        Get your free key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br>
         Without "Remember", your key is session-only and cleared on page close.
       </div>
     </div>
@@ -1169,10 +1170,20 @@ function renderImageResult(r) {
 
 // ── COMMIT HASH ───────────────────────────────────────────────────────────────
 async function updateCommitHash() {
+  const repo   = 'jellybean1979/Sentinel-A.I.';
+  const branch = 'main';
   try {
-    const r=await fetch('https://api.github.com/repos/jellybean1979/sentinel/commits?per_page=1');
-    if(r.ok){const d=await r.json(); if(d[0]?.sha) document.getElementById('versionTag').textContent+=' // '+d[0].sha.slice(0,7);}
-  } catch(_){}
+    const r = await fetch(`https://api.github.com/repos/${repo}/commits/${branch}`);
+    if (r.ok) {
+      const d = await r.json();
+      const hash = d.sha ? d.sha.substring(0, 7) : 'unknown';
+      document.getElementById('versionTag').textContent =
+        `SENTINEL AI DETECTOR // by Gary Langley // build ${hash}`;
+    }
+  } catch(_) {
+    document.getElementById('versionTag').textContent =
+      'SENTINEL AI DETECTOR // by Gary Langley // build unknown';
+  }
 }
 updateCommitHash();
 </script>
