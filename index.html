@@ -1060,7 +1060,11 @@ function deleteApiKey() {
 }
 
 function getApiHeaders() {
-  const h = { 'Content-Type': 'application/json' };
+  const h = {
+    'Content-Type': 'application/json',
+    'anthropic-version': '2023-06-01',
+    'anthropic-dangerous-direct-browser-access': 'true'
+  };
   if (userApiKey) h['x-api-key'] = userApiKey;
   return h;
 }
