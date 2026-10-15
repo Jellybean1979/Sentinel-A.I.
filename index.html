@@ -629,10 +629,72 @@
     display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;
   }
 
+  /* ── EXPORT BUTTON ── */
+  .btn-export {
+    width:100%; padding:12px;
+    background:rgba(255,215,0,0.07);
+    border:1px solid #ffd700;
+    border-radius:6px; color:#ffd700;
+    font-family:'Orbitron', monospace;
+    font-size:0.78rem; font-weight:700; letter-spacing:0.15em;
+    text-transform:uppercase; cursor:pointer; transition:all 0.25s;
+  }
+  .btn-export:hover { background:rgba(255,215,0,0.15); box-shadow:0 0 14px rgba(255,215,0,0.2); }
+
   @media(max-width:600px){
     h1 { font-size:1.5rem; }
     .signals-grid { grid-template-columns:1fr; }
     .tone-grid { grid-template-columns:repeat(2,1fr); }
+  }
+
+  /* ══════════════════════════════════════════
+     PRINT / PDF STYLES
+  ══════════════════════════════════════════ */
+  @media print {
+    * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+
+    /* Hide everything except the print target */
+    body { background:#070b10 !important; }
+    body::before, body::after { display:none !important; }
+    .wrap > *:not(.print-target) { display:none !important; }
+    .print-target { display:block !important; }
+
+    /* Print header */
+    .pdf-header {
+      display:flex !important;
+      align-items:center; justify-content:space-between;
+      padding:0 0 16px; margin-bottom:20px;
+      border-bottom:2px solid #00e5ff;
+    }
+    .pdf-header-left { display:flex; align-items:center; gap:12px; }
+    .pdf-title {
+      font-family:'Orbitron', monospace; font-size:1.4rem;
+      font-weight:900; color:#00e5ff; letter-spacing:0.15em;
+    }
+    .pdf-subtitle {
+      font-family:'Share Tech Mono', monospace;
+      font-size:0.72rem; color:#4a7a9b; letter-spacing:0.15em;
+    }
+    .pdf-meta {
+      font-family:'Share Tech Mono', monospace;
+      font-size:0.7rem; color:#4a7a9b; text-align:right; line-height:1.6;
+    }
+
+    /* Layout */
+    .card { break-inside:avoid; page-break-inside:avoid; border:1px solid #1a3050 !important; margin-bottom:14px !important; }
+    .card::before { display:none; }
+    .signals-grid { grid-template-columns:repeat(2,1fr) !important; }
+    .signal-card { break-inside:avoid; }
+
+    /* Hide interactive chrome */
+    .btn-export, .btn-analyze, .loading-bar, .loading-msg,
+    .error-box, .card:first-child { display:none !important; }
+
+    /* Force show result card */
+    #text-result, #img-result { display:block !important; }
+    #text-result .card, #img-result .card { display:block !important; }
+
+    footer { display:none !important; }
   }
 
   /* ── KEY STATUS BAR ── */
@@ -795,6 +857,7 @@
         <div class="signals-grid" id="text-signals"></div>
         <div class="card-title">ANALYSIS SUMMARY</div>
         <div class="summary-box" id="text-summary"></div>
+        <button class="btn-export" onclick="exportPDF('text')" style="margin-top:16px">📄 EXPORT REPORT AS PDF</button>
       </div>
     </div>
   </div>
@@ -838,6 +901,7 @@
         <div class="signals-grid" id="img-signals"></div>
         <div class="card-title">ANALYSIS SUMMARY</div>
         <div class="summary-box" id="img-summary"></div>
+        <button class="btn-export" onclick="exportPDF('image')" style="margin-top:16px">📄 EXPORT REPORT AS PDF</button>
       </div>
     </div>
   </div>
@@ -1355,6 +1419,68 @@ function sendToDetector() {
   document.getElementById('char-count').textContent = text.length.toLocaleString();
   switchTab('text');
   showToast('✓ Text loaded into detector — run a scan to verify.', 'ok');
+}
+
+// ── PDF EXPORT ────────────────────────────────────────────────────────────────
+function exportPDF(type) {
+  // Build a hidden print-only wrapper with a branded header
+  const existing = document.getElementById('print-wrapper');
+  if (existing) existing.remove();
+
+  const resultEl = document.getElementById(type === 'text' ? 'text-result' : 'img-result');
+  if (!resultEl || !resultEl.classList.contains('show')) {
+    showToast('⚠ No report to export yet.', 'bad'); return;
+  }
+
+  const timestamp = type === 'text'
+    ? document.getElementById('text-timestamp').textContent
+    : document.getElementById('img-timestamp').textContent;
+  const verdict = type === 'text'
+    ? document.getElementById('text-verdict-badge').textContent
+    : document.getElementById('img-verdict-badge').textContent;
+  const pct = type === 'text'
+    ? document.getElementById('text-pct').textContent
+    : document.getElementById('img-pct').textContent;
+
+  // Clone result so we can inject print header
+  const clone = resultEl.cloneNode(true);
+  // Remove the export button from the clone
+  clone.querySelectorAll('.btn-export').forEach(b => b.remove());
+
+  const wrapper = document.createElement('div');
+  wrapper.id = 'print-wrapper';
+  wrapper.className = 'print-target';
+  wrapper.style.display = 'none'; // hidden until print
+
+  wrapper.innerHTML = `
+    <div class="pdf-header">
+      <div class="pdf-header-left">
+        <div style="font-size:2rem">🔬</div>
+        <div>
+          <div class="pdf-title">SENTINEL</div>
+          <div class="pdf-subtitle">AI CONTENT DETECTION SYSTEM // FORENSIC REPORT</div>
+        </div>
+      </div>
+      <div class="pdf-meta">
+        Generated: ${new Date().toLocaleString()}<br>
+        Type: ${type === 'text' ? 'TEXT ANALYSIS' : 'IMAGE ANALYSIS'}<br>
+        Verdict: ${verdict} (${pct})<br>
+        by Gary Langley
+      </div>
+    </div>
+  `;
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+
+  // Mark the wrap so print CSS knows what to show
+  const wrap = document.querySelector('.wrap');
+  wrap.querySelectorAll(':scope > *').forEach(el => el.classList.remove('print-target'));
+  wrapper.classList.add('print-target');
+
+  window.print();
+
+  // Cleanup after print dialog closes
+  setTimeout(() => wrapper.remove(), 1000);
 }
 
 // ── COMMIT HASH ───────────────────────────────────────────────────────────────
